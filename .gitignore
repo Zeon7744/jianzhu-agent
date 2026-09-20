@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+src/frontend/node_modules/
+
+# Build output
+dist/
+build/
+src/frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+src/backend/__pycache__/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache
+.cache/
+tmp/
+temp/
+
+# Git
+.git/
