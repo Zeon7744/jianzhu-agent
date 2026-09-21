@@ -7,6 +7,11 @@ import os
 from datetime import datetime, date
 import secrets
 from typing import List, Optional
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from agent import AGENT_PROFILES, get_agent, list_agents, AgentBrain, KnowledgeRetriever, AgentCollaborator, agent_message_bus
+from health import get_system_health, get_database_health, get_api_health, run_startup_self_check
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "db", "jianjian.db")
 
@@ -25,6 +30,11 @@ def init_db():
         ("customers", "id TEXT PRIMARY KEY, name TEXT, type TEXT, contact TEXT, phone TEXT, email TEXT, projects INTEGER DEFAULT 0, amount REAL DEFAULT 0, rating INTEGER DEFAULT 3, last_contact TEXT, status TEXT DEFAULT 'active'"),
         ("knowledge", "id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category TEXT, tags TEXT DEFAULT '[]', content TEXT, hits INTEGER DEFAULT 0, author TEXT, updated TEXT, created TEXT"),
         ("agent_logs", "id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT, action TEXT, content TEXT, result TEXT, created_at TEXT"),
+        ("contracts", "id TEXT PRIMARY KEY, name TEXT, type TEXT, project_id TEXT, customer_id TEXT, amount REAL DEFAULT 0, sign_date TEXT, start_date TEXT, end_date TEXT, payment_terms TEXT, status TEXT DEFAULT 'pending', created_at TEXT"),
+        ("reports", "id TEXT PRIMARY KEY, title TEXT, type TEXT, inspection_id TEXT, project_id TEXT, report_no TEXT, pages INTEGER DEFAULT 0, issue_date TEXT, reviewer TEXT, confidentiality TEXT DEFAULT 'internal', status TEXT DEFAULT 'draft', created_at TEXT, updated_at TEXT"),
+        ("suppliers", "id TEXT PRIMARY KEY, name TEXT, type TEXT, contact TEXT, phone TEXT, email TEXT, main_products TEXT DEFAULT '[]', rating INTEGER DEFAULT 3, status TEXT DEFAULT 'active', created_at TEXT"),
+        ("materials", "id TEXT PRIMARY KEY, name TEXT, spec TEXT, category TEXT, price REAL DEFAULT 0, stock INTEGER DEFAULT 0, min_stock INTEGER DEFAULT 5, unit TEXT DEFAULT '个', status TEXT DEFAULT 'normal', created_at TEXT"),
+        ("procurement", "id TEXT PRIMARY KEY, material_id TEXT, supplier_id TEXT, quantity REAL DEFAULT 0, unit_price REAL DEFAULT 0, amount REAL DEFAULT 0, order_date TEXT, expected_date TEXT, actual_date TEXT, status TEXT DEFAULT 'pending', created_at TEXT"),
     ]
     for tbl_name, schema in tables:
         c.execute(f'CREATE TABLE IF NOT EXISTS {tbl_name} ({schema})')
@@ -40,40 +50,46 @@ def init_db():
             c.execute('INSERT OR IGNORE INTO projects VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', p)
     if not c.execute('SELECT COUNT(*) FROM staff').fetchone()[0]:
         for s in [
-            ('EMP001','张建国','技术部','总工程师','138****1234','zhang@example.com',json.dumps(['高级工程师','注册结构工程师']),'2018-03-15','active','user'),
-            ('EMP002','李明华','检测部','检测主管','139****5678','li@example.com',json.dumps(['检测师','无损检测II级']),'2019-06-01','active','user'),
-            ('EMP003','王小红','咨询部','咨询工程师','137****9012','wang@example.com',json.dumps(['造价工程师']),'2020-01-10','active','user'),
-            ('EMP004','刘强','检测部','检测员','136****3456','liu@example.com',json.dumps(['检测师']),'2021-09-01','active','user'),
+            ('EMP001','张建国','技术部','总工程师','138****1234','zhang@example.com',json.dumps(['高级工程师','注册结构工程师']),5,'active',today),
+            ('SP002','华检检测设备公司','检测设备供应商','钱经理','139****0002','qian@hjset.com',json.dumps(['压力试验机','回弹仪']),5,'active',today),
+            ('SP002','华检检测设备公司','检测设备供应商','钱经理','139****0002','qian@hjset.com',json.dumps(['压力试验机','回弹仪']),5,'active',today),
+            ('SP003','绿源环保科技','环保材料供应商','孙经理','137****0003','sun@lyhb.com',json.dumps(['甲醛检测仪','PM2.5监测仪']),4,'active',today),
+            ('SP004','恒通五金机电','五金机电供应商','周经理','136****0004','zhou@htjd.com',json.dumps(['钻头','耗材']),4,'active',today),
+            ('SP005','安防卫士科技','安防设备供应商','吴经理','135****0005','wu@afws.com',json.dumps(['消防检测设备']),3,'active',today),
+            ('SP006','鑫达化工产品','化工材料供应商','郑经理','134****0006','zheng xd@hdhg.com',json.dumps(['化学试剂']),3,'inactive',today),
+            ('SP007','美居装饰材料','装饰材料供应商','冯经理','133****0007','feng@mjzl.com',json.dumps(['涂料','板材']),4,'active',today),
+            ('SP008','精仪仪表仪器','仪器仪表供应商','何经理','132****0008','he@jyyq.com',json.dumps(['水准仪','全站仪']),5,'active',today),
         ]:
-            c.execute('INSERT OR IGNORE INTO staff VALUES (?,?,?,?,?,?,?,?,?,?)', s)
-    if not c.execute('SELECT COUNT(*) FROM equipment').fetchone()[0]:
-        for e in [
-            ('SB001','万能试验机','WE-1000','normal','一楼实验室A','有效','2027-03-15','2026-08-01','2026-11-01',285000,today),
-            ('SB002','回弹仪','HJ-2250','normal','检测设备组','有效','2027-01-20','2026-07-15','2026-10-15',3200,today),
-            ('SB003','钢筋扫描仪','CSS-2','warning','现场检测组','即将到期','2026-10-01','2026-06-01','2026-09-01',45000,today),
+            c.execute('INSERT OR IGNORE INTO suppliers (id,name,type,contact,phone,email,main_products,rating,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)', sp)
+    # 初始化材料数据
+    if not c.execute('SELECT COUNT(*) FROM materials').fetchone()[0]:
+        for mt in [
+            ('MAT001','混凝土试块标准养护箱','HBY-40B','检测设备',0,3,1,28500,today),
+            ('MAT002','回弹仪标准弹击锤','HJ-2250配件','检测耗材',0,20,5,3200,today),
+            ('MAT003','钢筋扫描仪探头','CSS-2专用','检测设备',0,15,3,45000,today),
+            ('MAT004','甲醛检测采样管','10ml标准','室内检测耗材',0,100,20,28,today),
+            ('MAT005','PM2.5滤膜','20*25cm','室内检测耗材',0,50,10,156,today),
+            ('MAT006','水泥取样器','标准型','地基检测',0,8,2,1200,today),
+            ('MAT007','钢筋保护层厚度检测仪','ZBL-R6200','检测设备',0,5,1,35000,today),
+            ('MAT008','超声波测厚仪','CT-2006','检测设备',0,12,3,8500,today),
+            ('MAT009','无损检测耦合剂','500ml/瓶','检测耗材',0,30,10,85,today),
+            ('MAT010','混凝土回弹仪标定锤','标准器','检测设备',0,2,1,12000,today),
+            ('MAT011','全站仪棱镜组','标准配置','测量设备',0,6,2,28000,today),
+            ('MAT012','应力应变仪传感器','动态应变','检测设备',0,10,3,6500,today),
         ]:
-            c.execute('INSERT OR IGNORE INTO equipment VALUES (?,?,?,?,?,?,?,?,?,?,?)', e)
-    # 初始化角色权限
-    role_perms = {
-        'admin':   {'dashboard':(1,1,1,1),'projects':(1,1,1,1),'inspections':(1,1,1,1),'hr':(1,1,1,1),'finance':(1,1,1,1),'equipment':(1,1,1,1),'customers':(1,1,1,1),'compliance':(1,1,1,1),'knowledge':(1,1,1,0),'agents':(1,1,1,1),'settings':(1,1,1,1)},
-        'manager': {'dashboard':(1,0,0,0),'projects':(1,1,1,0),'inspections':(1,1,1,0),'hr':(1,0,0,0),'finance':(1,0,0,0),'equipment':(1,1,1,0),'customers':(1,1,1,0),'compliance':(1,0,0,0),'knowledge':(1,1,1,0),'agents':(1,0,0,0),'settings':(0,0,0,0)},
-        'staff':   {'dashboard':(1,0,0,0),'projects':(1,0,0,0),'inspections':(1,1,1,0),'hr':(0,0,0,0),'finance':(0,0,0,0),'equipment':(1,0,0,0),'customers':(1,0,0,0),'compliance':(1,0,0,0),'knowledge':(1,1,0,0),'agents':(1,0,0,0),'settings':(0,0,0,0)},
-        'guest':   {'dashboard':(1,0,0,0),'projects':(1,0,0,0),'inspections':(1,0,0,0),'hr':(0,0,0,0),'finance':(0,0,0,0),'equipment':(0,0,0,0),'customers':(0,0,0,0),'compliance':(1,0,0,0),'knowledge':(1,0,0,0),'agents':(1,0,0,0),'settings':(0,0,0,0)},
-    }
-    for role, mods in role_perms.items():
-        for mod, (cv,cc,cu,cd) in mods.items():
-            c.execute("INSERT OR IGNORE INTO role_permissions (role,module,can_view,can_create,can_update,can_delete) VALUES (?,?,?,?,?,?)", (role,mod,cv,cc,cu,cd))
-    # 初始化默认用户
-    default_users = [
-        ("admin","admin123","张建国","admin","技术部","总工程师","zhang@example.com","138****1234","admin"),
-        ("manager","mgr12345","李明华","manager","检测部","检测主管","li@example.com","139****5678","manager"),
-        ("staff01","staff123","王小红","staff","咨询部","咨询工程师","wang@example.com","137****9012","staff"),
-        ("staff02","staff456","刘强","staff","检测部","检测员","liu@example.com","136****3456","staff"),
-        ("guest","guest123","访客用户","guest",None,"访客",None,None,"guest"),
-    ]
-    for u in default_users:
-        c.execute("INSERT OR IGNORE INTO users (username,password,name,role,dept,position,email,phone,avatar,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (u[0],u[1],u[2],u[3],u[4],u[5],u[6],u[7],u[8],"active",today))
-    
+            c.execute('INSERT OR IGNORE INTO materials (id,name,spec,category,price,stock,min_stock,unit,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)', mt)
+    # 初始化采购单数据
+    if not c.execute('SELECT COUNT(*) FROM procurement').fetchone()[0]:
+        for po in [
+            ('PO2026001','MAT002','SP002',20,3200,64000,'2026-09-01','2026-09-15','2026-09-14','received',today),
+            ('PO2026002','MAT004','SP003',100,28,2800,'2026-09-10','2026-09-20','', 'pending',today),
+            ('PO2026003','MAT005','SP003',50,156,7800,'2026-09-12','2026-09-25','', 'pending',today),
+            ('PO2026004','MAT006','SP001',8,1200,9600,'2026-09-05','2026-09-18','', 'shipped',today),
+            ('PO2026005','MAT009','SP002',30,85,2550,'2026-09-15','2026-09-30','', 'pending',today),
+            ('PO2026006','MAT011','SP008',6,28000,168000,'2026-08-20','2026-09-05','2026-09-04','received',today),
+            ('PO2026007','MAT003','SP002',3,45000,135000,'2026-09-08','2026-09-22','', 'pending',today),
+        ]:
+            c.execute('INSERT OR IGNORE INTO procurement (id,material_id,supplier_id,quantity,unit_price,amount,order_date,expected_date,actual_date,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)', po)
     conn.commit()
     conn.close()
     print(f"DB initialized: {DB_PATH}")
@@ -81,11 +97,23 @@ def init_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 启动自检
+    print("[Self-Check] Starting system initialization...")
     init_db()
+    check_result = run_startup_self_check()
+    print(f"[Self-Check] Status: {check_result['overall_status']}")
+    for check in check_result.get("checks", []):
+        status = check.get("status", "?")
+        name = check.get("name", "unknown")
+        print(f"  [{status.upper()}] {name}")
+    for err in check_result.get("errors", []):
+        print(f"  [ERROR] {err}")
+    for warn in check_result.get("warnings", []):
+        print(f"  [WARN] {warn}")
     yield
 
 
-app = FastAPI(title='建检智管 API', description='建筑行业检测及信息咨询公司 AI企业应用系统', version='1.2.0', lifespan=lifespan)
+app = FastAPI(title='建检智管 API', description='建筑行业检测及信息咨询公司 AI企业应用系统', version='2.1.0', lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 
@@ -122,6 +150,12 @@ def _get_user_permissions(role):
             'can_delete': d['can_delete'],
         }
     return perms
+
+
+# ==================== Agent 实例 ====================
+_agent_brain = AgentBrain()
+_knowledge_retriever = KnowledgeRetriever()
+_agent_collaborator = AgentCollaborator(_agent_brain)
 
 
 @app.get('/api/auth/permissions')
@@ -366,7 +400,181 @@ def create_agent_log(data: dict):
 # ==================== 健康检查 ====================
 @app.get('/api/health')
 def health_check():
-    return {'status': 'ok', 'version': '1.2.0', 'timestamp': datetime.now().isoformat()}
+    return {'status': 'ok', 'version': '2.1.0', 'timestamp': datetime.now().isoformat()}
+
+
+
+# ==================== 系统健康检查API ====================
+@app.get('/api/system/health')
+def system_health():
+    """系统全面健康检查"""
+    sys_health = get_system_health()
+    db_health = get_database_health()
+    api_health = get_api_health()
+    
+    overall = "healthy"
+    if sys_health["status"] == "error" or db_health["status"] == "error" or api_health["status"] == "error":
+        overall = "error"
+    elif sys_health["status"] == "warning" or db_health["status"] == "warning" or api_health["status"] == "degraded":
+        overall = "warning"
+    
+    return {
+        "status": overall,
+        "system": sys_health,
+        "database": db_health,
+        "api": api_health,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.get('/api/system/startup-check')
+def startup_check():
+    """启动自检报告"""
+    report = run_startup_self_check()
+    return report
+
+
+@app.get('/api/system/info')
+def system_info():
+    """系统信息"""
+    import platform
+    conn = get_db()
+    table_counts = {}
+    for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall():
+        try:
+            cnt = conn.execute("SELECT COUNT(*) FROM [" + row["name"] + "]").fetchone()[0]
+            table_counts[row["name"]] = cnt
+        except:
+            table_counts[row["name"]] = -1
+    conn.close()
+    
+    return {
+        "version": "2.1.0",
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+        "db_path": str(DB_PATH),
+        "tables": table_counts,
+        "agents_count": len(AGENT_PROFILES),
+        "agent_names": list(AGENT_PROFILES.keys()),
+    }
+
+
+# ==================== Agent AI API ====================
+@app.post('/api/agents/chat')
+def agent_chat(data: dict):
+    """Agent对话 - 基于真实数据的智能回复"""
+    agent_name = data.get("agent", "智管")
+    message = data.get("message", "")
+    context = data.get("context", {})
+    
+    if not message:
+        agent = get_agent(agent_name)
+        if agent:
+            return {
+                "agent": agent_name,
+                "reply": f"您好！我是{agent['name']}（{agent['role']}），{agent['desc']}。请问有什么可以帮您？",
+                "intent": "greeting",
+                "suggestions": ["请帮我分析经营状况", "有什么风险需要注意", "今日工作建议"],
+            }
+        return {"agent": agent_name, "reply": "您好！请告诉我您需要什么帮助。", "intent": "greeting"}
+    
+    result = _agent_brain.analyze(agent_name, message, context)
+    related_knowledge = _knowledge_retriever.get_related_knowledge(agent_name, context)
+    
+    suggestions = result.get("suggestions", [])[:3] if result.get("suggestions") else ["请提供更多细节以便我给出更精准的分析"]
+    
+    return {
+        "agent": agent_name,
+        "reply": result["summary"],
+        "intent": result["intent"],
+        "risks": result.get("risks", []),
+        "opportunities": result.get("opportunities", []),
+        "suggestions": suggestions,
+        "related_knowledge": related_knowledge[:3],
+        "metrics": result.get("data_points", {}),
+    }
+
+
+@app.post('/api/agents/collaborative-analysis')
+def agent_collaborative_analysis(data: dict):
+    """多Agent协作分析"""
+    query = data.get("query", "")
+    primary_agent = data.get("primary_agent", "智管")
+    include_agents = data.get("include_agents", [])
+    
+    if not query:
+        raise HTTPException(status_code=400, detail="查询内容不能为空")
+    
+    result = _agent_collaborator.collaborative_analysis(query, primary_agent, include_agents)
+    return result
+
+
+@app.get('/api/agents/list')
+def list_agents_api():
+    """获取所有Agent列表"""
+    agents = list_agents()
+    return {"agents": agents, "count": len(agents)}
+
+
+@app.get('/api/agents/{agent_name}/history')
+def agent_history(agent_name: str, limit: int = Query(20)):
+    """获取Agent交互历史"""
+    messages = agent_message_bus.get_agent_history(agent_name, limit)
+    return {"agent": agent_name, "messages": messages, "count": len(messages)}
+
+
+@app.post('/api/agents/{agent_name}/knowledge')
+def agent_knowledge(agent_name: str, data: dict = None):
+    """为Agent获取相关知识"""
+    kb = _knowledge_retriever
+    d = data or {}
+    query = d.get("query", "")
+    if query:
+        results = kb.search(query, limit=5)
+    else:
+        results = kb.get_related_knowledge(agent_name)
+    return {"agent": agent_name, "knowledge": results, "count": len(results)}
+
+
+@app.post('/api/agents/alert')
+def agent_proactive_alert(data: dict):
+    """主动预警"""
+    alert_type = data.get("type", "risk_alert")
+    content = data.get("content", "")
+    severity = data.get("severity", "normal")
+    result = _agent_collaborator.proactive_alert(alert_type, content, severity)
+    return result
+
+
+@app.get('/api/agents/messages')
+def agent_messages(msg_type: str = Query(None), limit: int = Query(50)):
+    """获取Agent消息总线记录"""
+    messages = agent_message_bus.get_messages(msg_type=msg_type, limit=limit)
+    return {"messages": messages, "count": len(messages)}
+
+
+@app.get('/api/knowledge/search')
+def knowledge_search_api(category: str = Query(None), search: str = Query(None), limit: int = Query(10)):
+    """知识库搜索API"""
+    kb = _knowledge_retriever
+    if search:
+        results = kb.search(search, category, limit)
+    elif category:
+        results = kb.get_by_category(category, limit)
+    else:
+        results = kb.get_all_categories()
+        return {"categories": results, "count": len(results)}
+    return {"results": results, "count": len(results)}
+
+
+@app.post('/api/knowledge/{doc_id}/hit')
+def knowledge_hit(doc_id: int):
+    """增加文档访问量"""
+    _knowledge_retriever.increment_hits(doc_id)
+    return {"message": "访问量已更新"}
+
+
+# ==================== 财务管理 ====================
 
 
 if __name__ == '__main__':
@@ -572,6 +780,296 @@ def delete_knowledge(doc_id: int):
     conn.close()
     return {'message': '知识文档删除成功'}
 
+
+
+# ==================== 合同管理 ====================
+@app.get('/api/contracts')
+def list_contracts(project_id: str = Query(None), search: str = Query(None)):
+    conn = get_db()
+    wheres, ps = [], []
+    if project_id:
+        wheres.append('project_id=?')
+        ps.append(project_id)
+    if search:
+        for col in ('id', 'name', 'customer_id'):
+            wheres.append(f'{col} LIKE ?')
+            ps.append(f'%{search}%')
+    sql = 'SELECT * FROM contracts'
+    if wheres:
+        sql += ' WHERE ' + ' AND '.join(wheres)
+    sql += ' ORDER BY sign_date DESC'
+    rows = conn.execute(sql, ps).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/contracts')
+def create_contract(data: dict):
+    conn = get_db()
+    cid = f"HT{datetime.now().strftime('%Y%m%d')}{len(conn.execute('SELECT * FROM contracts').fetchall()) + 1:03d}"
+    data['id'] = cid
+    data['created_at'] = datetime.now().isoformat()
+    data.setdefault('status', 'pending')
+    keys = list(data.keys())
+    placeholders = ','.join(['?'] * len(keys))
+    conn.execute(f"INSERT INTO contracts ({','.join(keys)}) VALUES ({placeholders})", list(data.values()))
+    conn.commit()
+    conn.close()
+    return {'id': cid, 'message': '合同创建成功'}
+
+@app.put('/api/contracts/{contract_id}')
+def update_contract(contract_id: str, data: dict):
+    conn = get_db()
+    data['updated_at'] = datetime.now().isoformat()
+    sets = ','.join([f'{k}=?' for k in data.keys()])
+    conn.execute(f'UPDATE contracts SET {sets} WHERE id=?', list(data.values()) + [contract_id])
+    conn.commit()
+    conn.close()
+    return {'message': '合同更新成功'}
+
+@app.delete('/api/contracts/{contract_id}')
+def delete_contract(contract_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM contracts WHERE id=?', (contract_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '合同删除成功'}
+
+# ==================== 检测报告 ====================
+@app.get('/api/reports')
+def list_reports(inspection_id: str = Query(None), project_id: str = Query(None), status: str = Query(None)):
+    conn = get_db()
+    wheres, ps = [], []
+    if inspection_id:
+        wheres.append('inspection_id=?')
+        ps.append(inspection_id)
+    if project_id:
+        wheres.append('project_id=?')
+        ps.append(project_id)
+    if status:
+        wheres.append('status=?')
+        ps.append(status)
+    sql = 'SELECT * FROM reports'
+    if wheres:
+        sql += ' WHERE ' + ' AND '.join(wheres)
+    sql += ' ORDER BY created_at DESC'
+    rows = conn.execute(sql, ps).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/reports')
+def create_report(data: dict):
+    conn = get_db()
+    rid = f"RP{datetime.now().strftime('%Y%m%d')}{len(conn.execute('SELECT * FROM reports').fetchall()) + 1:03d}"
+    data['id'] = rid
+    now = datetime.now().isoformat()
+    data['created_at'] = data['updated_at'] = now
+    data.setdefault('status', 'draft')
+    data.setdefault('pages', 0)
+    keys = list(data.keys())
+    placeholders = ','.join(['?'] * len(keys))
+    conn.execute(f"INSERT INTO reports ({','.join(keys)}) VALUES ({placeholders})", list(data.values()))
+    conn.commit()
+    conn.close()
+    return {'id': rid, 'message': '报告创建成功'}
+
+@app.put('/api/reports/{report_id}')
+def update_report(report_id: str, data: dict):
+    conn = get_db()
+    data['updated_at'] = datetime.now().isoformat()
+    sets = ','.join([f'{k}=?' for k in data.keys()])
+    conn.execute(f'UPDATE reports SET {sets} WHERE id=?', list(data.values()) + [report_id])
+    conn.commit()
+    conn.close()
+    return {'message': '报告更新成功'}
+
+@app.delete('/api/reports/{report_id}')
+def delete_report(report_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM reports WHERE id=?', (report_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '报告删除成功'}
+
+# ==================== 供应商管理 ====================
+@app.get('/api/suppliers')
+def list_suppliers(search: str = Query(None)):
+    conn = get_db()
+    wheres, ps = [], []
+    if search:
+        for col in ('id', 'name', 'type', 'contact'):
+            wheres.append(f'{col} LIKE ?')
+            ps.append(f'%{search}%')
+    sql = 'SELECT * FROM suppliers'
+    if wheres:
+        sql += ' WHERE ' + ' AND '.join(wheres)
+    sql += ' ORDER BY rating DESC'
+    rows = conn.execute(sql, ps).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get('main_products'):
+            try:
+                d['main_products'] = json.loads(d['main_products'])
+            except Exception:
+                d['main_products'] = []
+        result.append(d)
+    return result
+
+@app.post('/api/suppliers')
+def create_supplier(data: dict):
+    conn = get_db()
+    sid = f"SP{len(conn.execute('SELECT * FROM suppliers').fetchall()) + 1:03d}"
+    data['id'] = sid
+    data['created_at'] = datetime.now().isoformat()
+    data.setdefault('main_products', json.dumps([]))
+    data.setdefault('rating', 3)
+    data.setdefault('status', 'active')
+    keys = list(data.keys())
+    placeholders = ','.join(['?'] * len(keys))
+    conn.execute(f"INSERT INTO suppliers ({','.join(keys)}) VALUES ({placeholders})", list(data.values()))
+    conn.commit()
+    conn.close()
+    return {'id': sid, 'message': '供应商添加成功'}
+
+@app.put('/api/suppliers/{supplier_id}')
+def update_supplier(supplier_id: str, data: dict):
+    conn = get_db()
+    if 'main_products' in data and isinstance(data['main_products'], list):
+        data['main_products'] = json.dumps(data['main_products'])
+    sets = ','.join([f'{k}=?' for k in data.keys()])
+    conn.execute(f'UPDATE suppliers SET {sets} WHERE id=?', list(data.values()) + [supplier_id])
+    conn.commit()
+    conn.close()
+    return {'message': '供应商更新成功'}
+
+@app.delete('/api/suppliers/{supplier_id}')
+def delete_supplier(supplier_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM suppliers WHERE id=?', (supplier_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '供应商删除成功'}
+
+# ==================== 装修材料 ====================
+@app.get('/api/materials')
+def list_materials(category: str = Query(None), search: str = Query(None)):
+    conn = get_db()
+    wheres, ps = [], []
+    if category and category != 'all':
+        wheres.append('category=?')
+        ps.append(category)
+    if search:
+        for col in ('id', 'name', 'spec'):
+            wheres.append(f'{col} LIKE ?')
+            ps.append(f'%{search}%')
+    sql = 'SELECT * FROM materials'
+    if wheres:
+        sql += ' WHERE ' + ' AND '.join(wheres)
+    sql += ' ORDER BY id'
+    rows = conn.execute(sql, ps).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/materials')
+def create_material(data: dict):
+    conn = get_db()
+    mid = f"MAT{len(conn.execute('SELECT * FROM materials').fetchall()) + 1:03d}"
+    data['id'] = mid
+    data['created_at'] = datetime.now().isoformat()
+    data.setdefault('price', 0)
+    data.setdefault('stock', 0)
+    data.setdefault('min_stock', 5)
+    data.setdefault('status', 'normal')
+    data.setdefault('unit', '个')
+    keys = list(data.keys())
+    placeholders = ','.join(['?'] * len(keys))
+    conn.execute(f"INSERT INTO materials ({','.join(keys)}) VALUES ({placeholders})", list(data.values()))
+    conn.commit()
+    conn.close()
+    return {'id': mid, 'message': '材料添加成功'}
+
+@app.put('/api/materials/{material_id}')
+def update_material(material_id: str, data: dict):
+    conn = get_db()
+    sets = ','.join([f'{k}=?' for k in data.keys()])
+    conn.execute(f'UPDATE materials SET {sets} WHERE id=?', list(data.values()) + [material_id])
+    conn.commit()
+    conn.close()
+    return {'message': '材料更新成功'}
+
+@app.delete('/api/materials/{material_id}')
+def delete_material(material_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM materials WHERE id=?', (material_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '材料删除成功'}
+
+# ==================== 采购管理 ====================
+@app.get('/api/procurement')
+def list_procurement(material_id: str = Query(None), status: str = Query(None)):
+    conn = get_db()
+    wheres, ps = [], []
+    if material_id:
+        wheres.append('material_id=?')
+        ps.append(material_id)
+    if status:
+        wheres.append('status=?')
+        ps.append(status)
+    sql = 'SELECT * FROM procurement'
+    if wheres:
+        sql += ' WHERE ' + ' AND '.join(wheres)
+    sql += ' ORDER BY order_date DESC'
+    rows = conn.execute(sql, ps).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/procurement')
+def create_procurement(data: dict):
+    conn = get_db()
+    pid = f"PO{datetime.now().strftime('%Y%m%d')}{len(conn.execute('SELECT * FROM procurement').fetchall()) + 1:03d}"
+    data['id'] = pid
+    data['created_at'] = datetime.now().isoformat()
+    data.setdefault('status', 'pending')
+    keys = list(data.keys())
+    placeholders = ','.join(['?'] * len(keys))
+    conn.execute(f"INSERT INTO procurement ({','.join(keys)}) VALUES ({placeholders})", list(data.values()))
+    conn.commit()
+    conn.close()
+    return {'id': pid, 'message': '采购单创建成功'}
+
+# ==================== 业务统计API ====================
+@app.get('/api/stats/business')
+def business_stats():
+    conn = get_db()
+    contracts = conn.execute('SELECT * FROM contracts').fetchall()
+    reports = conn.execute('SELECT * FROM reports').fetchall()
+    suppliers = conn.execute("SELECT * FROM suppliers WHERE status='active'").fetchall()
+    materials = conn.execute('SELECT * FROM materials').fetchall()
+    procurement = conn.execute('SELECT * FROM procurement').fetchall()
+    
+    total_contract_amount = sum(ct['amount'] for ct in contracts)
+    signed_contracts = len([ct for ct in contracts if ct['status'] == 'signed'])
+    pending_contracts = len([ct for ct in contracts if ct['status'] == 'pending'])
+    
+    completed_reports = len([rp for rp in reports if rp['status'] == 'completed'])
+    in_progress_reports = len([rp for rp in reports if rp['status'] in ('testing', 'reporting')])
+    
+    low_stock = len([mt for mt in materials if mt['stock'] <= mt['min_stock']])
+    total_material_value = sum(mt['price'] * mt['stock'] for mt in materials)
+    
+    pending_orders = len([po for po in procurement if po['status'] == 'pending'])
+    total_procurement = sum(po['amount'] for po in procurement)
+    
+    conn.close()
+    return {
+        'contracts': {'total': len(contracts), 'signed': signed_contracts, 'pending': pending_contracts, 'total_amount': round(total_contract_amount/10000, 1)},
+        'reports': {'total': len(reports), 'completed': completed_reports, 'in_progress': in_progress_reports},
+        'suppliers': {'total': len(suppliers), 'active': len(suppliers)},
+        'materials': {'total': len(materials), 'low_stock': low_stock, 'total_value': round(total_material_value/10000, 1)},
+        'procurement': {'total': len(procurement), 'pending': pending_orders, 'total_amount': round(total_procurement/10000, 1)},
+    }
 
 # ==================== 财务统计 ====================
 @app.get('/api/finance/stats')

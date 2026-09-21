@@ -14,14 +14,19 @@ import Knowledge from './pages/Knowledge'
 import Agents from './pages/Agents'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import Contracts from './pages/Contracts'
+import Reports from './pages/Reports'
+import Trade from './pages/Trade'
+import Materials from './pages/Materials'
+import Procurement from './pages/Procurement'
 import './index.css'
 
-// 角色权限映射到页面路径
+// 角色权限映射到页面路由
 const ROLE_PAGES = {
-  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings'],
-  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents'],
-  staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents'],
-  guest:   ['dashboard','projects','inspections','compliance','knowledge','agents'],
+  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings','contracts','reports','trade','materials','procurement'],
+  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','contracts','reports','trade','materials'],
+  staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents','contracts','reports','materials'],
+  guest:   ['dashboard','projects','inspections','compliance','knowledge','agents','reports'],
 }
 
 function ProtectedRoute({ user, children, requiredRole }) {
@@ -54,7 +59,6 @@ function App() {
     localStorage.removeItem('jianjian_perms')
   }
 
-  // 根据角色生成可用页面列表
   const allowedPages = user ? (ROLE_PAGES[user.role] || ROLE_PAGES.guest) : []
   const defaultPage = allowedPages[0] || 'dashboard'
 
@@ -70,6 +74,11 @@ function App() {
     knowledge: <Knowledge />,
     agents: <Agents />,
     settings: <Settings />,
+    contracts: <Contracts />,
+    reports: <Reports />,
+    trade: <Trade />,
+    materials: <Materials />,
+    procurement: <Procurement />,
   }
 
   return (

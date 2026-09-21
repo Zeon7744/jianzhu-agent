@@ -9,7 +9,6 @@ import {
   Space,
   theme,
   Typography,
-  BadgeDot,
   Tag,
 } from 'antd'
 import {
@@ -26,9 +25,10 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BellOutlined,
   LogoutOutlined,
-  SearchOutlined,
+  ShoppingCartOutlined,
+  WarehouseOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = AntLayout
@@ -41,17 +41,22 @@ const ROLE_LABELS = {
 }
 
 const PAGE_META = {
-  dashboard:   { icon: <DashboardOutlined />, label: '管理驾驶舱' },
-  projects:    { icon: <ProjectOutlined />,   label: '项目管理' },
-  inspections: { icon: <FileTextOutlined />,  label: '检测业务' },
-  hr:          { icon: <TeamOutlined />,      label: '人力资源' },
-  finance:     { icon: <DollarOutlined />,    label: '财务管理' },
-  equipment:   { icon: <ToolOutlined />,      label: '设备管理' },
-  customers:   { icon: <UserOutlined />,      label: '客户管理' },
-  compliance:  { icon: <SafetyOutlined />,    label: '合规风控' },
-  knowledge:   { icon: <BookOutlined />,      label: '知识管理' },
-  agents:      { icon: <RobotOutlined />,     label: '数字员工' },
-  settings:    { icon: <SettingOutlined />,   label: '系统设置' },
+  dashboard:   { icon: <DashboardOutlined />,  label: '管理驾驶舱' },
+  projects:    { icon: <ProjectOutlined />,    label: '项目管理' },
+  inspections: { icon: <FileTextOutlined />,   label: '检测业务' },
+  hr:          { icon: <TeamOutlined />,       label: '人力资源' },
+  finance:     { icon: <DollarOutlined />,     label: '财务管理' },
+  equipment:   { icon: <ToolOutlined />,       label: '设备管理' },
+  customers:   { icon: <UserOutlined />,       label: '客户管理' },
+  compliance:  { icon: <SafetyOutlined />,     label: '合规风控' },
+  knowledge:   { icon: <BookOutlined />,       label: '知识管理' },
+  agents:      { icon: <RobotOutlined />,      label: '数字员工' },
+  settings:    { icon: <SettingOutlined />,    label: '系统设置' },
+  contracts:   { icon: <FileTextOutlined />,   label: '合同管理' },
+  reports:     { icon: <FileTextOutlined />,   label: '检测报告' },
+  trade:       { icon: <ShoppingCartOutlined />, label: '贸易管理' },
+  materials:   { icon: <WarehouseOutlined />,  label: '材料管理' },
+  procurement: { icon: <ShoppingOutlined />,   label: '采购管理' },
 }
 
 export default function AppLayout({ user, token, onLogout, allowedPages }) {
@@ -60,7 +65,7 @@ export default function AppLayout({ user, token, onLogout, allowedPages }) {
   const location = useLocation()
   const roleInfo = ROLE_LABELS[user?.role] || ROLE_LABELS.guest
 
-  // 构建菜单项（根据角色权限过滤）
+  // 根据角色权限过滤菜单项
   const menuItems = (allowedPages || []).map(page => ({
     key: '/' + page,
     icon: PAGE_META[page]?.icon,
@@ -102,7 +107,7 @@ export default function AppLayout({ user, token, onLogout, allowedPages }) {
             {collapsed ? (
               <MenuUnfoldOutlined onClick={() => setCollapsed(false)} style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }} />
             ) : (
-              <MenuFoldOutlined onClick={() => setCollapsed(true)} style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }} />
+              <MenuFoldOutlined onClick={() => setCollapsed(false)} style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }} />
             )}
             <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               {PAGE_META[location.pathname.replace('/', '')]?.label || '系统'}
@@ -110,10 +115,7 @@ export default function AppLayout({ user, token, onLogout, allowedPages }) {
           </Space>
 
           <Space size={16}>
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <BellOutlined style={{ fontSize: 18, color: '#595959' }} />
-              <Badge count={3} size="small" style={{ right: -4, top: -4 }} />
-            </div>
+            <Badge count={3} size="small" style={{ cursor: 'pointer' }} />
             <Dropdown {...userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar style={{ background: '#1890ff' }}>{user?.name?.charAt(0) || 'U'}</Avatar>

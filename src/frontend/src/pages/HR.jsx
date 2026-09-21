@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, UserOutlined, PhoneOutlined,
-  MailOutlined, CalendarOutlined, CertificateOutlined, RobotOutlined,
+  MailOutlined, CalendarOutlined, CheckCircleOutlined, RobotOutlined,
   ToolOutlined, BookOutlined, FileTextOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -153,7 +153,7 @@ export default function HR() {
               <Col span={12}><Text type="secondary">手机号：</Text><br /><PhoneOutlined /> {selectedStaff.phone}</Col>
               <Col span={12}><Text type="secondary">邮箱：</Text><br /><MailOutlined /> {selectedStaff.email}</Col>
               <Col span={12}><Text type="secondary">入职日期：</Text><br /><CalendarOutlined /> {selectedStaff.join_date}</Col>
-              <Col span={12}><Text type="secondary">资质证书：</Text><br /><CertificateOutlined /> {(selectedStaff.certs || []).length > 0 ? selectedStaff.certs.join(', ') : '暂无'}</Col>
+              <Col span={12}><Text type="secondary">资质证书：</Text><br /><CheckCircleOutlined /> {(selectedStaff.certs || []).length > 0 ? selectedStaff.certs.join(', ') : '暂无'}</Col>
             </Row>
             <div style={{ marginTop: 16, padding: 12, background: '#f6ffed', borderRadius: 8 }}>
               <Text>在职状态：在职</Text>

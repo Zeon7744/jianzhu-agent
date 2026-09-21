@@ -165,6 +165,28 @@ export const useStore = create(
         get().fetchKnowledge()
       },
 
+      // ========== Agent状态 ==========
+      agents: [],
+      agentHistory: [],
+      fetchAgents: async () => {
+        try {
+          const data = await request('/api/agents/list')
+          set({ agents: data.agents || [] })
+        } catch (e) { console.error('Fetch agents failed:', e) }
+      },
+      agentChat: async (agent, message) => {
+        try {
+          const data = await request('/api/agents/chat', { method: 'POST', body: { agent, message } })
+          return data
+        } catch (e) { console.error('Agent chat failed:', e); return null }
+      },
+      agentCollaborativeAnalysis: async (query, primary, include) => {
+        try {
+          const data = await request('/api/agents/collaborative-analysis', { method: 'POST', body: { query, primary_agent: primary, include_agents: include || [] } })
+          return data
+        } catch (e) { console.error('Collaborative analysis failed:', e); return null }
+      },
+
       // ========== Dashboard统计 ==========
       dashboardStats: null,
       fetchDashboardStats: async () => {
@@ -172,6 +194,59 @@ export const useStore = create(
           const data = await request('/api/stats/dashboard')
           set({ dashboardStats: data })
         } catch (e) { console.error('Fetch dashboard stats failed:', e) }
+      },
+
+      // ========== 鍚堝悓鐘舵€?
+      contracts: [],
+      fetchContracts: async () => {
+        try {
+          const data = await request('/api/contracts')
+          set({ contracts: data })
+        } catch (e) { console.error('Fetch contracts failed:', e) }
+      },
+      createContract: async (data) => {
+        const result = await request('/api/contracts', { method: 'POST', body: data })
+        get().fetchContracts()
+        return result
+      },
+
+      // ========== 妫€娴嬫姤鍛婄姸鎬?
+      reports: [],
+      fetchReports: async () => {
+        try {
+          const data = await request('/api/reports')
+          set({ reports: data })
+        } catch (e) { console.error('Fetch reports failed:', e) }
+      },
+
+      // ========== 璐告槗/渚涘簲鍟嗙姸鎬?
+      suppliers: [],
+      procurement: [],
+      materials: [],
+      businessStats: null,
+      fetchSuppliers: async () => {
+        try {
+          const data = await request('/api/suppliers')
+          set({ suppliers: data })
+        } catch (e) { console.error('Fetch suppliers failed:', e) }
+      },
+      fetchProcurement: async () => {
+        try {
+          const data = await request('/api/procurement')
+          set({ procurement: data })
+        } catch (e) { console.error('Fetch procurement failed:', e) }
+      },
+      fetchMaterials: async () => {
+        try {
+          const data = await request('/api/materials')
+          set({ materials: data })
+        } catch (e) { console.error('Fetch materials failed:', e) }
+      },
+      fetchBusinessStats: async () => {
+        try {
+          const data = await request('/api/stats/business')
+          set({ businessStats: data })
+        } catch (e) { console.error('Fetch business stats failed:', e) }
       },
 
       // ========== AI助手日志 ==========

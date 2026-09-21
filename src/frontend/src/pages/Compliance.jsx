@@ -1,137 +1,184 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Typography, Alert, Space, Button, Divider, Progress, List } from 'antd'
-import { SafetyOutlined, CheckCircleOutlined, ExclamationCircleOutlined, BookOutlined, RobotOutlined } from '@ant-design/icons'
+import { Row, Col, Card, Table, Tag, Button, Space, Typography, Badge, Statistic, Alert } from 'antd'
+import { CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, RobotOutlined, SafetyOutlined, ClockCircleOutlined, BarChartOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useStore } from '../store'
-
 const { Title, Text } = Typography
 
-const regulations = [
-  { id: 1, title: '建设工程质量检测管理办法', dept: '住建部', date: '2026-07-01', type: '部门规章', level: 'high', summary: '规范检测机构资质认定和检测行为，明确检测数据和报告的责任。' },
-  { id: 2, title: '建筑结构检测技术标准', dept: '住建部', date: '2026-03-15', type: '国家标准', level: 'high', summary: '规定了建筑结构检测的基本原则、检测方法和评定标准。' },
-  { id: 3, title: '房屋安全鉴定标准', dept: '住建部', date: '2026-01-01', type: '行业标准', level: 'medium', summary: '明确房屋安全鉴定的程序、内容和等级评定方法。' },
-  { id: 4, title: '钢结构工程施工质量验收规范', dept: '住建部', date: '2025-12-01', type: '国家标准', level: 'high', summary: '最新修订版，增加了焊接质量检测要求。' },
-  { id: 5, title: '室内环境污染物浓度限值', dept: '生态环境部', date: '2025-10-01', type: '国家标准', level: 'medium', summary: '规定了室内空气中有害物质限值及检测方法。' },
-]
-
-const complianceChecks = [
-  { id: 1, name: '资质证书有效性检查', status: 'pass', date: '2026-09-15', detail: '所有资质证书均在有效期内' },
-  { id: 2, name: '人员持证上岗检查', status: 'pass', date: '2026-09-10', detail: `在岗${staff?.length || 0}人全部持证` },
-  { id: 3, name: '设备检定状态检查', status: equipment?.some(e => e.status === 'warning') ? 'warning' : 'pass', date: '2026-09-08', detail: `${equipment?.filter(e => e.status === 'warning').length || 0}台设备检定即将到期` },
-  { id: 4, name: '检测报告规范性检查', status: 'pass', date: '2026-09-05', detail: '近期报告合格率98%' },
-  { id: 5, name: '法规更新跟踪', status: 'warning', date: '2026-09-01', detail: '《建设工程质量检测管理办法》已生效，建议组织培训' },
-]
-
 export default function Compliance() {
-  const [selectedReg, setSelectedReg] = useState(null)
-  const [complianceScore, setComplianceScore] = useState(96)
+  const { projects, fetchProjects, inspections, fetchInspections, equipment, fetchEquipment } = useStore()
+  const [qcData, setQcData] = useState([])
+  const [safetyData, setSafetyData] = useState([])
+  const [budgetData, setBudgetData] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchEquipment()
-    fetchStaff()
-    // Calculate compliance score based on real data
-    const warnCount = equipment?.filter(e => e.status === 'warning').length || 0
-    const expiringCerts = equipment?.filter(e => {
-      if (!e.cert_due) return false
-      const days = Math.ceil((new Date(e.cert_due) - new Date()) / 86400000)
-      return days < 30 && days > 0
-    }).length
-    const score = Math.max(0, 100 - warnCount * 5 - expiringCerts * 10)
-    setComplianceScore(score)
-    setLoading(false)
+    fetchProjects(); fetchInspections(); fetchEquipment()
+    Promise.all([
+      fetch('http://localhost:8000/api/quality-checks').then(r => r.json()).then(d => setQcData(d || [])).catch(() => setQcData([])),
+      fetch('http://localhost:8000/api/safety-records').then(r => r.json()).then(d => setSafetyData(d || [])).catch(() => setSafetyData([])),
+      fetch('http://localhost:8000/api/budget-items').then(r => r.json()).then(d => setBudgetData(d || [])).catch(() => setBudgetData([])),
+    ]).finally(() => setLoading(false))
   }, [])
+
+  const qcTotal = qcData.length
+  const qcPass = qcData.filter(q => q.result === '合格').length
+  const qcFail = qcData.filter(q => q.result === '不合格').length
+  const qcPending = qcData.filter(q => q.result === '待检').length
+  const safetyOpen = safetyData.filter(s => s.status === 'open').length
+  const safetyResolved = safetyData.filter(s => s.status === 'resolved').length
+  const budgetTotal = budgetData.reduce((s, b) => s + (b.budget || 0), 0)
+  const budgetActual = budgetData.reduce((s, b) => s + (b.actual || 0), 0)
+
+  const qcOption = {
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie', radius: ['45%', '75%'],
+      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+      label: { show: false },
+      data: [
+        { value: qcPass, name: '合格', itemStyle: { color: '#52c41a' } },
+        { value: qcFail, name: '不合格', itemStyle: { color: '#ff4d4f' } },
+        { value: qcPending, name: '待检', itemStyle: { color: '#faad14' } },
+      ]
+    }]
+  }
+
+  const safetyOption = {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['高风险', '中风险', '低风险'], bottom: 0 },
+    grid: { top: 10, right: 20, bottom: 30, left: 40 },
+    xAxis: { type: 'category', data: ['未处理', '已解决'], axisLabel: { fontSize: 11 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 11 } },
+    series: [
+      { name: '高风险', type: 'bar', stack: 'total', data: [safetyData.filter(s=>s.level==='high'&&s.status==='open').length, safetyData.filter(s=>s.level==='high'&&s.status==='resolved').length], itemStyle: { color: '#ff4d4f' } },
+      { name: '中风险', type: 'bar', stack: 'total', data: [safetyData.filter(s=>s.level==='medium'&&s.status==='open').length, safetyData.filter(s=>s.level==='medium'&&s.status==='resolved').length], itemStyle: { color: '#faad14' } },
+      { name: '低风险', type: 'bar', stack: 'total', data: [safetyData.filter(s=>s.level==='low'&&s.status==='open').length, safetyData.filter(s=>s.level==='low'&&s.status==='resolved').length], itemStyle: { color: '#52c41a' } },
+    ]
+  }
+
+  const qcColumns = [
+    { title: '编号', dataIndex: 'id', width: 110 },
+    { title: '项目', dataIndex: 'project_id', width: 100 },
+    { title: '检验类型', dataIndex: 'check_type', width: 100 },
+    { title: '检验项目', dataIndex: 'check_item', ellipsis: true },
+    { title: '执行标准', dataIndex: 'standard', width: 160, render: v => <Text code style={{ fontSize: 11 }}>{v}</Text> },
+    { title: '结果', dataIndex: 'result', width: 80, render: v => <Badge status={v==='合格'?'success':v==='不合格'?'error':'processing'} text={v} /> },
+    { title: '检验员', dataIndex: 'inspector', width: 80 },
+    { title: '计划日期', dataIndex: 'plan_date', width: 100 },
+    { title: '状态', dataIndex: 'status', width: 90, render: v => <Tag color={v==='completed'?'green':v==='pending'?'orange':'blue'}>{v==='completed'?'已完成':v==='pending'?'待检':'进行中'}</Tag> },
+  ]
+
+  const safetyColumns = [
+    { title: '编号', dataIndex: 'id', width: 100 },
+    { title: '项目', dataIndex: 'project_id', width: 100 },
+    { title: '隐患类型', dataIndex: 'hazard_type', width: 100 },
+    { title: '描述', dataIndex: 'description', ellipsis: true },
+    { title: '级别', dataIndex: 'level', width: 70, render: v => <Tag color={v==='high'?'red':v==='medium'?'orange':'green'}>{v==='high'?'高':v==='medium'?'中':'低'}</Tag> },
+    { title: '状态', dataIndex: 'status', width: 90, render: v => <Badge status={v==='open'?'warning':'success'} text={v==='open'?'未处理':'已解决'} /> },
+    { title: '责任人', dataIndex: 'assigned_to', width: 80 },
+    { title: '截止日期', dataIndex: 'deadline', width: 100 },
+    { title: '处理措施', dataIndex: 'resolution', ellipsis: true, render: v => v ? <Text style={{ color: '#52c41a' }}>{v}</Text> : <Text type="secondary">-</Text> },
+  ]
 
   return (
     <div className="page-container fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>合规风控</Title>
-          <Text type="secondary">法规跟踪 · 合规检查 · 风险预警</Text>
-        </div>
-        <Space>
-          <Button icon={<RobotOutlined />} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none' }}>AI合规审查</Button>
-        </Space>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: 0 }}>合规与质安管理中心</Title>
+        <Text type="secondary">质量检测 · 安全管理 · 预算管控 · 法规合规</Text>
       </div>
 
+      {/* KPI Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {[
-          { label: '法规总数', value: regulations.length, icon: '📋', color: '#1890ff' },
-          { label: '待更新', value: 1, icon: '🔄', color: '#faad14' },
-          { label: '合规得分', value: '96', icon: '🎯', color: '#52c41a' },
-          { label: '风险项', value: 1, icon: '⚠️', color: '#ff4d4f' },
+          { label: '质检记录', sub: `合格率 ${(qcPass/qcTotal*100).toFixed(0)}%`, value: qcTotal, color: '#1890ff', icon: <CheckCircleOutlined /> },
+          { label: '安全隐患', sub: `${safetyOpen}项待处理`, value: safetyOpen, color: safetyOpen > 0 ? '#ff4d4f' : '#52c41a', icon: <SafetyOutlined /> },
+          { label: '预算执行率', sub: `${(budgetActual/budgetTotal*100).toFixed(1)}%`, value: `${(budgetActual/10000).toFixed(1)}万`, color: '#722ed1', icon: <BarChartOutlined /> },
+          { label: '设备检定预警', sub: '即将到期需关注', value: (equipment||[]).filter(e=>e.status==='warning').length, color: '#fa8c16', icon: <ExclamationCircleOutlined /> },
         ].map((s, i) => (
           <Col xs={12} sm={6} key={i}>
-            <Card style={{ borderRadius: 12, textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 4 }}>{s.icon}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: '#8c8c8c' }}>{s.label}</div>
+            <Card style={{ borderRadius: 12, borderLeft: `4px solid ${s.color}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{s.label}</Text>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: s.color, marginTop: 4 }}>{s.value}</div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{s.sub}</Text>
+                </div>
+                <div style={{ fontSize: 24, color: s.color, opacity: 0.5 }}>{s.icon}</div>
+              </div>
             </Card>
           </Col>
         ))}
       </Row>
 
-      <Alert type="warning" showIcon message="近期风险提醒" description={<ul style={{ margin: 0, paddingLeft: 20 }}>{[
-  ...(equipment?.filter(e => e.status === 'warning').map(e => `设备${e.id}(${e.name})检定即将到期`)),
-  '《建设工程质量检测管理办法》已生效，建议组织全员培训',
-  '建议开展Q3季度合规自查'
-].map((t, i) => <li key={i}>{t}</li>)}</ul>} style={{ marginBottom: 16, borderRadius: 8 }} />
-
       <Row gutter={[16, 16]}>
-        <Col span={16}>
-          <Card title="📚 法规库" style={{ borderRadius: 12 }}>
-            <List
-              grid={{ gutter: 16, xs: 1, sm: 1, md: 2 }}
-              dataSource={regulations}
-              renderItem={reg => (
-                <List.Item>
-                  <Card hoverable style={{ borderRadius: 12, cursor: 'pointer', height: '100%' }} onClick={() => setSelectedReg(reg)}>
-                    <Space wrap>
-                      <Tag color={reg.level === 'high' ? 'red' : 'orange'}>{reg.type}</Tag>
-                      <Tag color="gold">已更新</Tag>
-                    </Space>
-                    <Title level={5} style={{ marginTop: 12, marginBottom: 8, fontSize: 14 }}>{reg.title}</Title>
-                    <Text type="secondary" style={{ fontSize: 12 }}>发布部门：{reg.dept} · 生效日期：{reg.date}</Text>
-                    <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c', lineHeight: 1.6 }}>{reg.summary}</div>
-                  </Card>
-                </List.Item>
-              )}
+        {/* Left: Quality checks */}
+        <Col xs={24} lg={14}>
+          <Card title={<><CheckCircleOutlined /> 质量检测记录</>} style={{ borderRadius: 12, marginBottom: 16 }}>
+            <Table
+              dataSource={qcData}
+              columns={qcColumns}
+              rowKey="id"
+              loading={loading}
+              pagination={{ pageSize: 8 }}
+              size="small"
+              scroll={{ x: 900 }}
             />
+          </Card>
+          <Card title={<><BarChartOutlined /> 质检统计</>} style={{ borderRadius: 12 }}>
+            <ReactECharts option={qcOption} style={{ height: 200 }} />
           </Card>
         </Col>
 
-        <Col span={8}>
-          <Card title={<><span>✅ 合规检查</span><Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>最近一次：2026-09-15</Text></>} style={{ borderRadius: 12, position: 'sticky', top: 80 }}>
-            {complianceChecks.map(item => (
-              <div key={item.id} style={{ padding: '12px 0', borderBottom: item.id === complianceChecks.length ? 'none' : '1px solid #f0f0f0' }}>
-                <Space>
-                  <SafetyOutlined style={{ color: item.status === 'pass' ? '#52c41a' : '#faad14', fontSize: 16 }} />
-                  <Text strong style={{ fontSize: 13 }}>{item.name}</Text>
-                </Space>
-                <div style={{ marginLeft: 28, fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>{item.detail}</div>
-                <div style={{ marginLeft: 28, fontSize: 11, color: '#bfbfbf' }}>{item.date}</div>
+        {/* Right: Safety */}
+        <Col xs={24} lg={10}>
+          <Card title={<><SafetyOutlined /> 安全隐患管理</>} style={{ borderRadius: 12, marginBottom: 16 }}>
+            {safetyData.map(s => (
+              <div key={s.id} style={{ padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Space>
+                    <Tag color={s.level === 'high' ? 'red' : s.level === 'medium' ? 'orange' : 'green'} style={{ fontSize: 10 }}>
+                      {s.level === 'high' ? '高' : s.level === 'medium' ? '中' : '低'}
+                    </Tag>
+                    <Text strong style={{ fontSize: 13 }}>{s.hazard_type}</Text>
+                  </Space>
+                  <Badge status={s.status === 'open' ? 'warning' : 'success'} text={s.status === 'open' ? '未处理' : '已解决'} />
+                </div>
+                <Text type="secondary" style={{ fontSize: 12 }}>{s.description?.substring(0, 30)}</Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  <Text style={{ fontSize: 11 }}>责任人: {s.assigned_to}</Text>
+                  <Text style={{ fontSize: 11, color: s.deadline && new Date(s.deadline) < new Date() ? '#ff4d4f' : '#8c8c8c' }}>
+                    {s.deadline ? `截止: ${s.deadline}` : ''}
+                  </Text>
+                </div>
               </div>
             ))}
-            <Button type="primary" block style={{ marginTop: 16 }}>开始新一轮合规检查</Button>
+            {safetyData.length === 0 && <Text type="secondary">暂无安全记录</Text>}
+          </Card>
+
+          <Card title={<><BarChartOutlined /> 隐患分布</>} style={{ borderRadius: 12 }}>
+            <ReactECharts option={safetyOption} style={{ height: 200 }} />
           </Card>
         </Col>
       </Row>
 
-      <Modal title={<><BookOutlined /> 法规详情</>} open={!!selectedReg} onCancel={() => setSelectedReg(null)} footer={[<Button key="close" onClick={() => setSelectedReg(null)}>关闭</Button>, <Button key="apply" type="primary">应用于当前业务</Button>]} width={640}>
-        {selectedReg && (
-          <div>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div><Text strong>法规名称：</Text><br />{selectedReg.title}</div>
-              <div><Text strong>发布部门：</Text><br />{selectedReg.dept}</div>
-              <div><Text strong>法规类型：</Text><br /><Tag>{selectedReg.type}</Tag></div>
-              <div><Text strong>生效日期：</Text><br />{selectedReg.date}</div>
-              <Divider />
-              <div><Text strong>内容摘要：</Text></div>
-              <div style={{ padding: 12, background: '#f5f5f5', borderRadius: 8, lineHeight: 1.8 }}>{selectedReg.summary}</div>
-            </Space>
-          </div>
-        )}
-      </Modal>
+      {/* AI Quality Analysis */}
+      <Card title={<><RobotOutlined /> AI质安分析助手</>} style={{ borderRadius: 12, marginTop: 16 }}>
+        <Alert
+          message="智能质检分析"
+          description={
+            <div>
+              <p>当前系统共监测 <Text strong>{qcTotal}</Text> 项质检记录，合格率 <Text strong style={{ color: '#52c41a' }}>{(qcPass/qcTotal*100).toFixed(0)}%</Text>。</p>
+              <p>存在 <Text strong style={{ color: '#ff4d4f' }}>{safetyOpen}</Text> 项未处理安全隐患，其中高风险 <Text strong style={{ color: '#ff4d4f' }}>{safetyData.filter(s=>s.level==='high'&&s.status==='open').length}</Text> 项，建议优先处理。</p>
+              <p>预算执行率 <Text strong>{(budgetActual/budgetTotal*100).toFixed(1)}%</Text>，处于可控范围。</p>
+            </div>
+          }
+          type={safetyOpen > 0 ? 'warning' : 'success'}
+          showIcon
+          style={{ marginTop: 8 }}
+        />
+      </Card>
     </div>
   )
 }
