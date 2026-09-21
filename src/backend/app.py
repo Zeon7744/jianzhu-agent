@@ -1159,3 +1159,220 @@ def dashboard_stats():
     }
     conn.close()
     return stats
+
+
+# ==================== 质量管理体系 API ====================
+@app.get('/api/quality-checks')
+def get_quality_checks(project_id: str = None, result: str = None):
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    query = 'SELECT * FROM quality_checks WHERE 1=1'
+    params = []
+    if project_id:
+        query += ' AND project_id = ?'
+        params.append(project_id)
+    if result:
+        query += ' AND result = ?'
+        params.append(result)
+    query += ' ORDER BY created_at DESC'
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/quality-checks')
+def create_quality_check(body: dict):
+    today = date.today().isoformat()
+    qc_id = body.get('id', f'QC{datetime.now().strftime("%Y%m%d%H%M%S")}')
+    conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO quality_checks (id, project_id, check_type, check_item, standard, result, status, inspector, plan_date, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            (qc_id, body.get('project_id'), body.get('check_type'), body.get('check_item'),
+             body.get('standard'), body.get('result', '待检'), body.get('status', 'pending'),
+             body.get('inspector'), body.get('plan_date'), body.get('notes', ''), today, today)
+        )
+        conn.commit()
+        conn.close()
+        return {'id': qc_id, 'message': '创建成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put('/api/quality-checks/{qc_id}')
+def update_quality_check(qc_id: str, body: dict):
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        conn.execute(
+            'UPDATE quality_checks SET result=?, status=?, inspector=?, actual_date=?, notes=?, updated_at=? WHERE id=?',
+            (body.get('result'), body.get('status', 'completed'), body.get('inspector'),
+             body.get('actual_date'), body.get('notes'), today, qc_id)
+        )
+        conn.commit()
+        conn.close()
+        return {'message': '更新成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete('/api/quality-checks/{qc_id}')
+def delete_quality_check(qc_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM quality_checks WHERE id=?', (qc_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '删除成功'}
+
+
+# ==================== 安全管理 API ====================
+@app.get('/api/safety-records')
+def get_safety_records(project_id: str = None, level: str = None):
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    query = 'SELECT * FROM safety_records WHERE 1=1'
+    params = []
+    if project_id:
+        query += ' AND project_id = ?'
+        params.append(project_id)
+    if level:
+        query += ' AND level = ?'
+        params.append(level)
+    query += ' ORDER BY created_at DESC'
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/safety-records')
+def create_safety_record(body: dict):
+    today = date.today().isoformat()
+    sid = body.get('id', f'SF{datetime.now().strftime("%Y%m%d%H%M%S")}')
+    conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO safety_records (id, project_id, hazard_type, description, level, status, assigned_to, deadline, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+            (sid, body.get('project_id'), body.get('hazard_type'), body.get('description'),
+             body.get('level', 'medium'), body.get('status', 'open'), body.get('assigned_to'),
+             body.get('deadline'), today)
+        )
+        conn.commit()
+        conn.close()
+        return {'id': sid, 'message': '创建成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put('/api/safety-records/{sf_id}')
+def update_safety_record(sf_id: str, body: dict):
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        conn.execute(
+            'UPDATE safety_records SET status=?, resolution=?, resolved_date=?, updated_at=? WHERE id=?',
+            (body.get('status', 'resolved'), body.get('resolution', ''), today, sf_id)
+        )
+        conn.commit()
+        conn.close()
+        return {'message': '更新成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete('/api/safety-records/{sf_id}')
+def delete_safety_record(sf_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM safety_records WHERE id=?', (sf_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '删除成功'}
+
+
+# ==================== 预算管理 API ====================
+@app.get('/api/budget-items')
+def get_budget_items(project_id: str = None):
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    query = 'SELECT * FROM budget_items WHERE 1=1'
+    params = []
+    if project_id:
+        query += ' AND project_id = ?'
+        params.append(project_id)
+    query += ' ORDER BY created_at DESC'
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/api/budget-items')
+def create_budget_item(body: dict):
+    today = date.today().isoformat()
+    bid = body.get('id', f'BGT{datetime.now().strftime("%Y%m%d%H%M%S")}')
+    conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO budget_items (id, project_id, category, item, budget, actual, unit, quantity, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+            (bid, body.get('project_id'), body.get('category'), body.get('item'),
+             body.get('budget', 0), body.get('actual', 0), body.get('unit', '元'),
+             body.get('quantity', 0), today)
+        )
+        conn.commit()
+        conn.close()
+        return {'id': bid, 'message': '创建成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put('/api/budget-items/{bg_id}')
+def update_budget_item(bg_id: str, body: dict):
+    conn = get_db()
+    try:
+        conn.execute(
+            'UPDATE budget_items SET category=?, item=?, budget=?, actual=?, unit=?, quantity=? WHERE id=?',
+            (body.get('category'), body.get('item'), body.get('budget', 0),
+             body.get('actual', 0), body.get('unit', '元'), body.get('quantity', 0), bg_id)
+        )
+        conn.commit()
+        conn.close()
+        return {'message': '更新成功'}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete('/api/budget-items/{bg_id}')
+def delete_budget_item(bg_id: str):
+    conn = get_db()
+    conn.execute('DELETE FROM budget_items WHERE id=?', (bg_id,))
+    conn.commit()
+    conn.close()
+    return {'message': '删除成功'}
+
+
+# ==================== 质量管理统计分析 ====================
+@app.get('/api/stats/quality')
+def quality_stats():
+    conn = get_db()
+    total = conn.execute('SELECT COUNT(*) FROM quality_checks').fetchone()[0]
+    passed = conn.execute("SELECT COUNT(*) FROM quality_checks WHERE result='合格'").fetchone()[0]
+    failed = conn.execute("SELECT COUNT(*) FROM quality_checks WHERE result='不合格'").fetchone()[0]
+    pending = conn.execute("SELECT COUNT(*) FROM quality_checks WHERE result='待检'").fetchone()[0]
+    by_type = {}
+    for r in conn.execute('SELECT check_type, COUNT(*) as cnt FROM quality_checks GROUP BY check_type'):
+        by_type[r['check_type']] = r['cnt']
+    conn.close()
+    return {
+        'total': total, 'passed': passed, 'failed': failed, 'pending': pending,
+        'pass_rate': round(passed / total * 100, 1) if total else 0,
+        'by_type': by_type
+    }
+
+@app.get('/api/stats/safety')
+def safety_stats():
+    conn = get_db()
+    total = conn.execute('SELECT COUNT(*) FROM safety_records').fetchone()[0]
+    open_h = conn.execute("SELECT COUNT(*) FROM safety_records WHERE status='open' AND level='high'").fetchone()[0]
+    open_m = conn.execute("SELECT COUNT(*) FROM safety_records WHERE status='open' AND level='medium'").fetchone()[0]
+    open_l = conn.execute("SELECT COUNT(*) FROM safety_records WHERE status='open' AND level='low'").fetchone()[0]
+    resolved = conn.execute("SELECT COUNT(*) FROM safety_records WHERE status='resolved'").fetchone()[0]
+    conn.close()
+    return {
+        'total': total, 'open': open_h + open_m + open_l, 'resolved': resolved,
+        'high_open': open_h, 'medium_open': open_m, 'low_open': open_l
+    }

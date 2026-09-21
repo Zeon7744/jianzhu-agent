@@ -19,13 +19,13 @@ import Reports from './pages/Reports'
 import Trade from './pages/Trade'
 import Materials from './pages/Materials'
 import Procurement from './pages/Procurement'
+import Budget from './pages/Budget'
 import './index.css'
 
-// 角色权限映射到页面路由
 const ROLE_PAGES = {
-  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings','contracts','reports','trade','materials','procurement'],
-  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','contracts','reports','trade','materials'],
-  staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents','contracts','reports','materials'],
+  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings','contracts','reports','trade','materials','procurement','budget'],
+  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','contracts','reports','trade','materials','budget'],
+  staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents','contracts','reports','materials','budget'],
   guest:   ['dashboard','projects','inspections','compliance','knowledge','agents','reports'],
 }
 
@@ -79,6 +79,7 @@ function App() {
     trade: <Trade />,
     materials: <Materials />,
     procurement: <Procurement />,
+    budget: <Budget />,
   }
 
   return (

@@ -27,8 +27,9 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   ShoppingCartOutlined,
-  WarehouseOutlined,
+  ContainerOutlined,
   ShoppingOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = AntLayout
@@ -55,8 +56,9 @@ const PAGE_META = {
   contracts:   { icon: <FileTextOutlined />,   label: '合同管理' },
   reports:     { icon: <FileTextOutlined />,   label: '检测报告' },
   trade:       { icon: <ShoppingCartOutlined />, label: '贸易管理' },
-  materials:   { icon: <WarehouseOutlined />,  label: '材料管理' },
+  materials:   { icon: <ContainerOutlined />,  label: '材料管理' },
   procurement: { icon: <ShoppingOutlined />,   label: '采购管理' },
+  budget:      { icon: <PieChartOutlined />,   label: '预算管理' },
 }
 
 export default function AppLayout({ user, token, onLogout, allowedPages }) {
@@ -65,7 +67,6 @@ export default function AppLayout({ user, token, onLogout, allowedPages }) {
   const location = useLocation()
   const roleInfo = ROLE_LABELS[user?.role] || ROLE_LABELS.guest
 
-  // 根据角色权限过滤菜单项
   const menuItems = (allowedPages || []).map(page => ({
     key: '/' + page,
     icon: PAGE_META[page]?.icon,
