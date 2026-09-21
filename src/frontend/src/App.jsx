@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
@@ -12,35 +13,85 @@ import Compliance from './pages/Compliance'
 import Knowledge from './pages/Knowledge'
 import Agents from './pages/Agents'
 import Settings from './pages/Settings'
+import Login from './pages/Login'
+import './index.css'
+
+// 角色权限映射到页面路径
+const ROLE_PAGES = {
+  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings'],
+  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents'],
+  staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents'],
+  guest:   ['dashboard','projects','inspections','compliance','knowledge','agents'],
+}
+
+function ProtectedRoute({ user, children, requiredRole }) {
+  if (!user) return <Navigate to="/" replace />
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return children
+}
 
 function App() {
-  const [user] = useState({
-    id: 1,
-    name: '张管理',
-    role: '总经理',
-    avatar: '👤',
-    company: '中建检测咨询有限公司'
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('jianjian_user')) || null } catch { return null }
   })
+  const [token, setToken] = useState(() => localStorage.getItem('jianjian_token') || null)
+
+  const handleLogin = (data) => {
+    setUser(data.user)
+    setToken(data.token)
+    localStorage.setItem('jianjian_user', JSON.stringify(data.user))
+    localStorage.setItem('jianjian_token', data.token)
+    localStorage.setItem('jianjian_perms', JSON.stringify(data.permissions || {}))
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+    setToken(null)
+    localStorage.removeItem('jianjian_user')
+    localStorage.removeItem('jianjian_token')
+    localStorage.removeItem('jianjian_perms')
+  }
+
+  // 根据角色生成可用页面列表
+  const allowedPages = user ? (ROLE_PAGES[user.role] || ROLE_PAGES.guest) : []
+  const defaultPage = allowedPages[0] || 'dashboard'
+
+  const routeMap = {
+    dashboard: <Dashboard />,
+    projects: <Projects />,
+    inspections: <Inspections />,
+    hr: <HR />,
+    finance: <Finance />,
+    equipment: <Equipment />,
+    customers: <Customers />,
+    compliance: <Compliance />,
+    knowledge: <Knowledge />,
+    agents: <Agents />,
+    settings: <Settings />,
+  }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout user={user} />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="inspections" element={<Inspections />} />
-          <Route path="hr" element={<HR />} />
-          <Route path="finance" element={<Finance />} />
-          <Route path="equipment" element={<Equipment />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="compliance" element={<Compliance />} />
-          <Route path="knowledge" element={<Knowledge />} />
-          <Route path="agents" element={<Agents />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
-    </Router>
+    <ConfigProvider theme={{ algorithm: undefined, token: { colorPrimary: '#1890ff', borderRadius: 8 } }}>
+      <Router>
+        <Routes>
+          <Route path="/" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to={`/${defaultPage}`} replace />} />
+          
+          {user ? (
+            <Route path="/" element={<Layout user={user} token={token} onLogout={handleLogout} allowedPages={allowedPages} />}>
+              {allowedPages.map(page => (
+                <Route key={page} path={page} element={<ProtectedRoute user={user}>{routeMap[page]}</ProtectedRoute>} />
+              ))}
+              <Route index element={<Navigate to={`/${defaultPage}`} replace />} />
+              <Route path="*" element={<Navigate to={`/${defaultPage}`} replace />} />
+            </Route>
+          ) : (
+            <Route path="*" element={<Navigate to="/" replace />} />
+          )}
+        </Routes>
+      </Router>
+    </ConfigProvider>
   )
 }
 

@@ -9,7 +9,8 @@ import {
   Space,
   theme,
   Typography,
-  BadgeDot
+  BadgeDot,
+  Tag,
 } from 'antd'
 import {
   DashboardOutlined,
@@ -27,147 +28,97 @@ import {
   MenuUnfoldOutlined,
   BellOutlined,
   LogoutOutlined,
-  SearchOutlined
+  SearchOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = AntLayout
 
-const menuItems = [
-  { key: '/dashboard', icon: <DashboardOutlined />, label: '管理驾驶舱' },
-  { key: '/projects', icon: <ProjectOutlined />, label: '项目管理' },
-  { key: '/inspections', icon: <FileTextOutlined />, label: '检测业务' },
-  { key: '/hr', icon: <TeamOutlined />, label: '人力资源' },
-  { key: '/finance', icon: <DollarOutlined />, label: '财务管理' },
-  { key: '/equipment', icon: <ToolOutlined />, label: '设备管理' },
-  { key: '/customers', icon: <UserOutlined />, label: '客户管理' },
-  { key: '/compliance', icon: <SafetyOutlined />, label: '合规风控' },
-  { key: '/knowledge', icon: <BookOutlined />, label: '知识管理' },
-  { key: '/agents', icon: <RobotOutlined />, label: '数字员工' },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' }
-]
-
-const layoutTheme = {
-  algorithm: theme.defaultAlgorithm,
-  token: {
-    colorPrimary: '#1890ff',
-    colorBgBase: '#ffffff',
-    colorBgLayout: '#f0f2f5',
-    colorText: 'rgba(0, 0, 0, 0.88)',
-    colorTextSecondary: 'rgba(0, 0, 0, 0.65)',
-    borderRadius: 8,
-    fontFamily: "'Noto Sans SC', sans-serif"
-  }
+const ROLE_LABELS = {
+  admin:   { label: '总经理', color: 'gold', bg: '#fff7e6' },
+  manager: { label: '主管',   color: 'orange', bg: '#fffbe6' },
+  staff:   { label: '员工',   color: 'blue',   bg: '#e6f7ff' },
+  guest:   { label: '访客',   color: 'default', bg: '#f5f5f5' },
 }
 
-export default function AppLayout({ user }) {
+const PAGE_META = {
+  dashboard:   { icon: <DashboardOutlined />, label: '管理驾驶舱' },
+  projects:    { icon: <ProjectOutlined />,   label: '项目管理' },
+  inspections: { icon: <FileTextOutlined />,  label: '检测业务' },
+  hr:          { icon: <TeamOutlined />,      label: '人力资源' },
+  finance:     { icon: <DollarOutlined />,    label: '财务管理' },
+  equipment:   { icon: <ToolOutlined />,      label: '设备管理' },
+  customers:   { icon: <UserOutlined />,      label: '客户管理' },
+  compliance:  { icon: <SafetyOutlined />,    label: '合规风控' },
+  knowledge:   { icon: <BookOutlined />,      label: '知识管理' },
+  agents:      { icon: <RobotOutlined />,     label: '数字员工' },
+  settings:    { icon: <SettingOutlined />,   label: '系统设置' },
+}
+
+export default function AppLayout({ user, token, onLogout, allowedPages }) {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const roleInfo = ROLE_LABELS[user?.role] || ROLE_LABELS.guest
+
+  // 构建菜单项（根据角色权限过滤）
+  const menuItems = (allowedPages || []).map(page => ({
+    key: '/' + page,
+    icon: PAGE_META[page]?.icon,
+    label: PAGE_META[page]?.label || page,
+  }))
 
   const userMenu = {
     items: [
+      { key: 'role', label: <Space><Tag color={roleInfo.color}>{roleInfo.label}</Tag>{user?.name}</Space>, disabled: true },
       { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
-      { key: 'settings', icon: <SettingOutlined />, label: '系统设置' },
       { type: 'divider' },
-      { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' }
+      { key: 'logout', icon: <LogoutOutlined />, label: '退出登录' },
     ],
     onClick: ({ key }) => {
-      if (key === 'logout') {
-        navigate('/')
-      }
-    }
+      if (key === 'logout') onLogout()
+    },
   }
 
   return (
-    <AntLayout theme={layoutTheme} style={{ minHeight: '100vh' }}>
+    <AntLayout theme={{ algorithm: theme.defaultAlgorithm, token: { colorPrimary: '#1890ff', borderRadius: 8, fontFamily: "'Noto Sans SC', sans-serif" } }} style={{ minHeight: '100vh' }}>
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         width={220}
         collapsedWidth={64}
-        style={{
-          background: '#001529',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 100
-        }}
+        style={{ background: '#001529', position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 100 }}
       >
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: collapsed ? 0 : '0 24px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          marginBottom: 8
-        }}>
+        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? 0 : '0 24px', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: 8 }}>
           <span style={{ fontSize: collapsed ? 20 : 24 }}>🏗️</span>
-          {!collapsed && (
-            <Typography.Text
-              style={{ color: '#fff', marginLeft: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
-            >
-              建检智管
-            </Typography.Text>
-          )}
+          {!collapsed && <Typography.Text style={{ color: '#fff', marginLeft: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>建检智管</Typography.Text>}
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          style={{ borderRight: 0, background: '#001529' }}
-        />
+        <Menu theme="dark" mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={({ key }) => navigate(key)} style={{ borderRight: 0, background: '#001529' }} />
       </Sider>
 
-      <AntLayout
-        style={{ marginLeft: collapsed ? 64 : 220, transition: 'all 0.2s' }}
-      >
-        <Header
-          style={{
-            padding: '0 24px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 99
-          }}
-        >
+      <AntLayout style={{ marginLeft: collapsed ? 64 : 220, transition: 'all 0.2s' }}>
+        <Header style={{ padding: '0 24px', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 99 }}>
           <Space>
             {collapsed ? (
-              <MenuUnfoldOutlined
-                onClick={() => setCollapsed(false)}
-                style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }}
-              />
+              <MenuUnfoldOutlined onClick={() => setCollapsed(false)} style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }} />
             ) : (
-              <MenuFoldOutlined
-                onClick={() => setCollapsed(true)}
-                style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }}
-              />
+              <MenuFoldOutlined onClick={() => setCollapsed(true)} style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }} />
             )}
-            <Breadcrumb items={getBreadcrumbs(location.pathname)} />
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              {PAGE_META[location.pathname.replace('/', '')]?.label || '系统'}
+            </Typography.Text>
           </Space>
 
           <Space size={16}>
             <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <BadgeDot />
               <BellOutlined style={{ fontSize: 18, color: '#595959' }} />
-              <Badge count={5} size="small" style={{ right: -4, top: -4 }} />
+              <Badge count={3} size="small" style={{ right: -4, top: -4 }} />
             </div>
             <Dropdown {...userMenu} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar style={{ background: '#1890ff' }}>
-                  {user.name.charAt(0)}
-                </Avatar>
-                <Typography.Text style={{ color: '#595959' }}>
-                  {user.name}
-                </Typography.Text>
+                <Avatar style={{ background: '#1890ff' }}>{user?.name?.charAt(0) || 'U'}</Avatar>
+                <Typography.Text style={{ color: '#595959' }}>{user?.name || '用户'}</Typography.Text>
+                <Tag color={roleInfo.color} style={{ marginLeft: 4, margin: 0 }}>{roleInfo.label}</Tag>
               </Space>
             </Dropdown>
           </Space>
@@ -179,36 +130,4 @@ export default function AppLayout({ user }) {
       </AntLayout>
     </AntLayout>
   )
-}
-
-function Breadcrumb({ items }) {
-  return (
-    <Space size={8} style={{ fontSize: 14, color: '#595959' }}>
-      {items.map((item, index) => (
-        <Space key={index} size={4}>
-          {index > 0 && <span>/</span>}
-          <span style={{ color: index === items.length - 1 ? '#000' : '#595959' }}>
-            {item.icon}{item.label}
-          </span>
-        </Space>
-      ))}
-    </Space>
-  )
-}
-
-function getBreadcrumbs(pathname) {
-  const map = {
-    '/dashboard': [{ label: '管理驾驶舱', icon: '📊' }],
-    '/projects': [{ label: '项目管理', icon: '📁' }],
-    '/inspections': [{ label: '检测业务', icon: '🔬' }],
-    '/hr': [{ label: '人力资源', icon: '👥' }],
-    '/finance': [{ label: '财务管理', icon: '💰' }],
-    '/equipment': [{ label: '设备管理', icon: '🔧' }],
-    '/customers': [{ label: '客户管理', icon: '🤝' }],
-    '/compliance': [{ label: '合规风控', icon: '🛡️' }],
-    '/knowledge': [{ label: '知识管理', icon: '📚' }],
-    '/agents': [{ label: '数字员工', icon: '🤖' }],
-    '/settings': [{ label: '系统设置', icon: '⚙️' }]
-  }
-  return map[pathname] || []
 }
