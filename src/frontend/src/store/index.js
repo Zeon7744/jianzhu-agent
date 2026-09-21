@@ -304,6 +304,102 @@ export const useStore = create(
           set({ aiAnalysis: { summary: responses[agent] || '正在分析...', risks: [], suggestions: [] }, aiAnalysisLoading: false })
         }, 1000)
       },
+      // ========== 企业制度 ==========
+      policies: [],
+      fetchPolicies: async (category) => {
+        try {
+          const q = category ? `?category=${category}` : ''
+          const data = await request(`/api/policies${q}`)
+          set({ policies: data })
+        } catch (e) { console.error('Fetch policies failed:', e) }
+      },
+      createPolicy: async (data) => {
+        await request('/api/policies', { method: 'POST', body: data })
+        get().fetchPolicies()
+      },
+      updatePolicy: async (id, data) => {
+        await request(`/api/policies/${id}`, { method: 'PUT', body: data })
+        get().fetchPolicies()
+      },
+      deletePolicy: async (id) => {
+        await request(`/api/policies/${id}`, { method: 'DELETE' })
+        get().fetchPolicies()
+      },
+
+      // ========== 资质管理 ==========
+      qualifications: [],
+      fetchQualifications: async () => {
+        try {
+          const data = await request('/api/qualifications')
+          set({ qualifications: data })
+        } catch (e) { console.error('Fetch qualifications failed:', e) }
+      },
+      createQualification: async (data) => {
+        await request('/api/qualifications', { method: 'POST', body: data })
+        get().fetchQualifications()
+      },
+      updateQualification: async (id, data) => {
+        await request(`/api/qualifications/${id}`, { method: 'PUT', body: data })
+        get().fetchQualifications()
+      },
+      deleteQualification: async (id) => {
+        await request(`/api/qualifications/${id}`, { method: 'DELETE' })
+        get().fetchQualifications()
+      },
+      qualificationStats: null,
+      fetchQualificationStats: async () => {
+        try {
+          const data = await request('/api/stats/qualifications')
+          set({ qualificationStats: data })
+        } catch (e) {}
+      },
+
+      // ========== 培训管理 ==========
+      trainingRecords: [],
+      fetchTrainingRecords: async (staff_id) => {
+        try {
+          const q = staff_id ? `?staff_id=${staff_id}` : ''
+          const data = await request(`/api/training-records${q}`)
+          set({ trainingRecords: data })
+        } catch (e) { console.error('Fetch training failed:', e) }
+      },
+      createTrainingRecord: async (data) => {
+        await request('/api/training-records', { method: 'POST', body: data })
+        get().fetchTrainingRecords()
+      },
+      trainingStats: null,
+      fetchTrainingStats: async () => {
+        try {
+          const data = await request('/api/stats/training')
+          set({ trainingStats: data })
+        } catch (e) {}
+      },
+
+      // ========== 业务流程 ==========
+      businessProcesses: [],
+      fetchBusinessProcesses: async (category) => {
+        try {
+          const q = category ? `?category=${category}` : ''
+          const data = await request(`/api/business-processes${q}`)
+          set({ businessProcesses: data })
+        } catch (e) { console.error('Fetch processes failed:', e) }
+      },
+      processSteps: {},
+      fetchProcessSteps: async (process_id) => {
+        try {
+          const data = await request(`/api/process-steps/${process_id}`)
+          set(prev => ({ ...prev, processSteps: { ...prev.processSteps, [process_id]: data } }))
+        } catch (e) { console.error('Fetch steps failed:', e) }
+      },
+
+      // ========== 组织架构 ==========
+      orgDepartments: [],
+      fetchOrgDepartments: async () => {
+        try {
+          const data = await request('/api/org/departments')
+          set({ orgDepartments: data })
+        } catch (e) { console.error('Fetch org failed:', e) }
+      },
     }),
     { name: 'jianjian-store' }
   )

@@ -20,11 +20,15 @@ import Trade from './pages/Trade'
 import Materials from './pages/Materials'
 import Procurement from './pages/Procurement'
 import Budget from './pages/Budget'
+import Policies from './pages/Policies'
+import Qualifications from './pages/Qualifications'
+import Training from './pages/Training'
+import Organization from './pages/Organization'
 import './index.css'
 
 const ROLE_PAGES = {
-  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings','contracts','reports','trade','materials','procurement','budget'],
-  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','contracts','reports','trade','materials','budget'],
+  admin:   ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','settings','contracts','reports','trade','materials','procurement','budget','policies','qualifications','training','organization'],
+  manager: ['dashboard','projects','inspections','hr','finance','equipment','customers','compliance','knowledge','agents','contracts','reports','trade','materials','budget','policies','qualifications','training','organization'],
   staff:   ['dashboard','projects','inspections','equipment','customers','compliance','knowledge','agents','contracts','reports','materials','budget'],
   guest:   ['dashboard','projects','inspections','compliance','knowledge','agents','reports'],
 }
@@ -80,6 +84,10 @@ function App() {
     materials: <Materials />,
     procurement: <Procurement />,
     budget: <Budget />,
+    policies: <Policies />,
+    qualifications: <Qualifications />,
+    training: <Training />,
+    organization: <Organization />,
   }
 
   return (

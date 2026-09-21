@@ -29,7 +29,7 @@ import {
   ShoppingCartOutlined,
   ContainerOutlined,
   ShoppingOutlined,
-  PieChartOutlined,
+  PieChartOutlined, BankOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = AntLayout
