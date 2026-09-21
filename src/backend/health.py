@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 
-DB_PATH = r"D:\项目\开发部\开发git\02\建筑行业检测及信息咨询公司agent\src\data\db\jianjian.db"
+# 跨平台路径: Windows/Linux/macOS 均可运行
+DB_PATH = str(Path(__file__).parent.parent / 'data' / 'db' / 'jianjian.db')
 START_TIME = time.time()
 
 

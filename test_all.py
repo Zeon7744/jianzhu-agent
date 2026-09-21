@@ -1,90 +1,102 @@
-import sys, json
+# -*- coding: utf-8 -*-
+"""系统完整性检查 - 跨平台版本 (Windows/Linux/macOS)"""
+import sys
+import json
+from pathlib import Path
+
 sys.stdout.reconfigure(encoding='utf-8')
 import sqlite3
 import urllib.request
 
-base = r"D:\项目\开发部\开发git\02\建筑行业检测及信息咨询公司agent"
-db_path = base + r"\src\data\db\jianjian.db"
-API = "http://localhost:8000"
+# 跨平台路径
+BASE = Path(__file__).parent
+DB_PATH = str(BASE / "src" / "data" / "db" / "jianjian.db")
+API_BASE = "http://localhost:8000"
 
 print("=" * 60)
 print("  建检智管 - 系统完整性检查")
 print("=" * 60)
 
-# 1. Database check
+# 【数据库】
 print("\n【数据库】")
-conn = sqlite3.connect(db_path)
-c = conn.cursor()
-for t in ['projects','inspections','staff','transactions','equipment','customers','knowledge','agent_logs']:
-    c.execute(f'SELECT COUNT(*) FROM [{t}]')
-    cnt = c.fetchone()[0]
-    status = "OK" if cnt > 0 else "EMPTY"
-    print(f"  {t:15s} : {cnt:4d} rows  [{status}]")
-conn.close()
+try:
+    conn = sqlite3.connect(DB_PATH)
+    tables = [
+        'projects', 'inspections', 'staff', 'transactions', 'equipment',
+        'customers', 'knowledge', 'agent_logs', 'contracts', 'reports',
+        'suppliers', 'materials', 'procurement', 'quality_checks',
+        'safety_records', 'budget_items', 'policies', 'qualifications',
+        'training_records', 'business_processes', 'process_steps', 'org_departments'
+    ]
+    for t in tables:
+        try:
+            cnt = conn.execute(f'SELECT COUNT(*) FROM [{t}]').fetchone()[0]
+            status = 'OK' if cnt > 0 else 'EMPTY'
+            print(f"  {t:25s}: {cnt:4d} rows  [{status}]")
+        except:
+            print(f"  {t:25s}: TABLE NOT FOUND")
+    conn.close()
+except Exception as e:
+    print(f"  [ERROR] Database: {e}")
 
-# 2. API endpoints check
+# 【后端 API】
 print("\n【后端 API】")
-endpoints = [
-    "/api/health",
-    "/api/projects",
-    "/api/inspections",
-    "/api/staff",
-    "/api/transactions",
-    "/api/equipment",
-    "/api/customers",
-    "/api/knowledge",
-    "/api/agent-logs",
-    "/api/stats/dashboard",
-    "/api/finance/stats",
+apis = [
+    '/api/health', '/api/projects', '/api/inspections', '/api/staff',
+    '/api/transactions', '/api/equipment', '/api/customers',
+    '/api/knowledge', '/api/agent-logs', '/api/stats/dashboard',
+    '/api/finance/stats', '/api/policies', '/api/qualifications',
+    '/api/org/departments',
 ]
-for ep in endpoints:
+for api in apis:
     try:
-        req = urllib.request.Request(API + ep)
-        resp = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(resp.read().decode())
-        cnt = len(data) if isinstance(data, list) else "dict"
-        print(f"  {ep:30s} : {resp.status}  ({cnt})")
+        r = urllib.request.urlopen(API_BASE + api, timeout=3)
+        data = json.loads(r.read())
+        if isinstance(data, list):
+            print(f"  {api:35s}: {r.status}  ({len(data)})")
+        elif isinstance(data, dict):
+            print(f"  {api:35s}: {r.status}  (dict)")
     except Exception as e:
-        print(f"  {ep:30s} : ERROR - {e}")
+        print(f"  {api:35s}: ERROR - {e}")
 
-# 3. Frontend check
+# 【前端】
 print("\n【前端】")
 try:
-    req = urllib.request.Request("http://localhost:3000")
-    resp = urllib.request.urlopen(req, timeout=5)
-    print(f"  http://localhost:3000 : {resp.status} OK")
+    r = urllib.request.urlopen("http://localhost:3000", timeout=3)
+    print(f"  http://localhost:3000 : {r.status} OK")
 except Exception as e:
-    print(f"  Frontend : ERROR - {e}")
+    print(f"  http://localhost:3000 : ERROR - {e}")
 
-# 4. Data quality check
+# 【数据质量】
 print("\n【数据质量】")
-conn = sqlite3.connect(db_path)
-c = conn.cursor()
-# Check staff has certs
-c.execute("SELECT COUNT(*) FROM staff WHERE certs='[]' OR certs IS NULL")
-no_certs = c.fetchone()[0]
-c.execute("SELECT COUNT(*) FROM staff WHERE certs != '[]' AND certs IS NOT NULL")
-with_certs = c.fetchone()[0]
-print(f"  员工持证: {with_certs}人, 未持证: {no_certs}人")
+try:
+    conn = sqlite3.connect(DB_PATH)
+    # 员工持证情况
+    total_staff = conn.execute("SELECT COUNT(*) FROM staff WHERE status='active'").fetchone()[0]
+    cert_staff = conn.execute("SELECT COUNT(*) FROM staff WHERE certs IS NOT NULL AND certs != '[]' AND status='active'").fetchone()[0]
+    no_cert = total_staff - cert_staff
+    print(f"  员工持证: {cert_staff}人, 未持证: {no_cert}人")
 
-# Check equipment cert status
-c.execute("SELECT COUNT(*) FROM equipment WHERE status='warning'")
-warn = c.fetchone()[0]
-print(f"  设备预警: {warn}台")
+    # 设备预警
+    warn_equip = conn.execute("SELECT COUNT(*) FROM equipment WHERE status='warning'").fetchone()[0]
+    print(f"  设备预警: {warn_equip}台")
 
-# Check project risks
-c.execute("SELECT COUNT(*) FROM projects WHERE risk='high'")
-high_risk = c.fetchone()[0]
-print(f"  高风险项目: {high_risk}个")
+    # 高风险项目
+    high_risk = conn.execute("SELECT COUNT(*) FROM projects WHERE risk='high' AND status='active'").fetchone()[0]
+    print(f"  高风险项目: {high_risk}个")
 
-# Check knowledge categories
-c.execute("SELECT category, COUNT(*) FROM knowledge GROUP BY category")
-cats = c.fetchall()
-print(f"  知识分类: {len(cats)}类")
-for cat, cnt in cats:
-    print(f"    - {cat}: {cnt}篇")
+    # 知识分类
+    cats = conn.execute("SELECT category, COUNT(*) as cnt FROM knowledge GROUP BY category ORDER BY cnt DESC LIMIT 5").fetchall()
+    print(f"  知识分类: {len(cats)}类 (TOP5)")
+    for row in cats:
+        print(f"    - {row[0]}: {row[1]}篇")
 
-conn.close()
+    # 资质到期
+    expiring = conn.execute("SELECT COUNT(*) FROM qualifications WHERE expiry_date <= date('now', '+90 days') AND status='active'").fetchone()[0]
+    print(f"  资质即将到期(90天内): {expiring}项")
+    conn.close()
+except Exception as e:
+    print(f"  [WARN] Data quality check: {e}")
 
 print("\n" + "=" * 60)
 print("  检查完成!")
