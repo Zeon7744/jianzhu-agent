@@ -1,164 +1,79 @@
-# 建检智管 - 建筑行业检测及信息咨询公司 AI企业应用系统
+# 🏗️ Jianzhu Agent — 建筑AI助手
 
-## 系统概述
-面向建筑行业检测及信息咨询公司的全功能AI企业应用系统，覆盖公司管理、运作、业务、人员、福利、后勤及财务等全方位模块。支持Windows、Linux、macOS三平台。
+> **建筑智能体系统** — 企业扩张 · 数据清理 · 自动化分析  
+> 面向建筑行业的AI辅助决策工具
 
-## 技术栈
-- **前端**: React 18 + Ant Design 5 + ECharts 5 + Zustand + Vite
-- **后端**: FastAPI + Uvicorn
-- **数据库**: SQLite (零配置，跨平台)
-- **AI层**: 规则引擎 + 结构化API（预留OpenAI/GPT集成接口）
+[![GitHub Stars](https://img.shields.io/github/stars/Zeon7744/jianzhu-agent?style=social)](https://github.com/Zeon7744/jianzhu-agent)
+[![GitHub Forks](https://img.shields.io/github/forks/Zeon7744/jianzhu-agent?style=social)](https://github.com/Zeon7744/jianzhu-agent/forks)
+[![GitHub License](https://img.shields.io/github/license/Zeon7744/jianzhu-agent)](https://github.com/Zeon7744/jianzhu-agent/blob/main/LICENSE)
+[![Gitee Stars](https://gitee.com/Zeon7744/jianzhu-agent/badge/star.svg?theme=gvp)](https://gitee.com/Zeon7744/jianzhu-agent)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 
-## 环境要求
-- Python 3.10+
-- Node.js 18+
-- Git
+---
 
-## 快速启动
+## 📌 这是 GitHub 官方主仓
 
-### 方式一：一键启动（推荐）
+> **Gitee 镜像**: [gitee.com/Zeon7744/jianzhu-agent](https://gitee.com/Zeon7744/jianzhu-agent)
 
-#### Windows
-```cmd
-双击 start.bat
-```
-或命令行：
-```cmd
-start.bat
-```
+Issues 和 PR 请在 GitHub 提交。
 
-#### Linux / macOS
+---
+
+## ⚡ 快速开始
+
 ```bash
-chmod +x start.sh
-./start.sh
-```
-
-### 方式二：手动启动
-
-#### 1. 初始化数据库
-```bash
-cd src/backend
-python init_db.py
-```
-
-#### 2. 安装依赖
-```bash
-# Python 依赖
+git clone https://github.com/Zeon7744/jianzhu-agent.git
+cd jianzhu-agent
 pip install -r requirements.txt
-
-# Node.js 依赖
-cd ../frontend
-npm install
+python expand_enterprise.py
 ```
 
-#### 3. 启动后端（终端1）
-```bash
-cd src/backend
-python -m uvicorn app:app --host 0.0.0.0 --port 8000
+---
+
+## 🛠️ 核心功能
+
+| 模块 | 功能 |
+|------|------|
+| **企业扩张** | 企业信息采集、关联分析 |
+| **数据清理** | 数据清洗、格式标准化 |
+| **自动化分析** | 智能报告生成 |
+| **文档处理** | PDF/Excel 批量处理 |
+
+---
+
+## 📁 项目结构
+
+```
+jianzhu-agent/
+├── expand_enterprise.py      # 企业扩张模块
+├── expand_enterprise_v2.py   # v2增强版
+├── cleanup.py               # 数据清理
+├── docs/                    # 文档目录
+├── requirements.txt         # 依赖列表
+└── README.md               # 项目文档
 ```
 
-#### 4. 启动前端（终端2）
-```bash
-cd src/frontend
-npm run dev -- --host 0.0.0.0
-```
+---
 
-## 访问地址
-- **前端**: http://localhost:3000
-- **后端API**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
+## ⚠️ 注意事项
 
-## 测试账号
-| 用户名 | 密码 | 角色 | 权限范围 |
-|--------|------|------|----------|
-| admin | admin123 | 总经理 | 全部模块 |
-| manager | mgr12345 | 主管 | 除系统设置外全部 |
-| staff01 | staff123 | 员工 | 核心业务模块 |
-| guest | guest123 | 访客 | 7个只读模块 |
+- 本系统仅供研究学习使用
+- 数据准确性请自行验证
 
-## 功能模块
+---
 
-### 核心业务模块
-| 模块 | 功能 | 角色权限 |
-|------|------|----------|
-| 管理驾驶舱 | KPI总览、经营趋势、风险雷达 | 全员 |
-| 项目管理 | 全生命周期管理、进度追踪、风险预警 | 管理/员工 |
-| 检测业务 | 检测任务全流程、标准匹配、报告生成 | 管理/员工 |
-| 合同管理 | 合同台账、收款节点、状态追踪 | 管理/员工 |
-| 检测报告 | 报告编制、三级审核、签发归档 | 管理/员工 |
-| 贸易管理 | 建筑贸易业务、客户跟踪 | 管理/员工 |
-| 材料管理 | 建材库存、规格管理、预警 | 管理/员工 |
-| 采购管理 | 采购申请、订单追踪、入库管理 | 管理/员工 |
-| 预算管理 | 项目预算、执行分析、偏差预警 | 管理/员工 |
+## 🤝 贡献指南
 
-### 企业管理模块
-| 模块 | 功能 | 角色权限 |
-|------|------|----------|
-| 人力资源 | 人员档案、资质证书、智能排班 | 总经理/主管 |
-| 财务管理 | 收支流水、成本核算、利润分析 | 总经理/主管 |
-| 设备管理 | 设备台账、检定追踪、预测维护 | 管理/员工 |
-| 客户管理 | CRM档案、商机挖掘、服务跟进 | 管理/员工 |
-| 合规风控 | 法规跟踪、合规检查、风险预警 | 全员 |
-| 知识管理 | 制度文档、标准规范、案例库 | 全员 |
-| 制度管理 | 公司规章制度、版本追踪、到期预警 | 总经理/主管 |
-| 资质管理 | 资质证书、有效期跟踪、续期提醒 | 总经理/主管 |
-| 培训管理 | 培训记录、继续教育、证书管理 | 总经理/主管 |
-| 组织架构 | 部门职责、流程可视化、权限矩阵 | 总经理 |
-| 数字员工 | 19位AI角色、智能问答、协同办公 | 全员 |
-| 系统设置 | 用户管理、权限配置、系统监控 | 总经理 |
+欢迎提交 Issue 和 Pull Request！
 
-### 数字员工团队 (19位)
-| 编号 | 名称 | 角色 | 领域 |
-|------|------|------|------|
-| AG001 | 智管 | 总经理助理 | 全局经营监控 |
-| AG002 | 智财 | 财务主管 | 财务分析、预算管控 |
-| AG003 | 智项 | 项目经理 | 项目进度、资源协调 |
-| AG004 | 智检 | 质检主管 | 质量检测、报告审核 |
-| AG005 | 智人 | HR主管 | 招聘培训、绩效考核 |
-| AG006 | 智客 | 客服顾问 | 客户维护、商机挖掘 |
-| AG007 | 智法 | 合规顾问 | 法规跟踪、风险提示 |
-| AG008 | 智设 | 设备管理员 | 设备台账、检定追踪 |
-| AG009 | 智安 | 安全主管 | 安全管理、隐患排查 |
-| AG010 | 智测 | 消防检测顾问 | 消防检测业务 |
-| AG011 | 智洁 | 洁净检测顾问 | 洁净检测业务 |
-| AG012 | 智雷 | 防雷检测顾问 | 防雷检测业务 |
-| AG013 | 智商 | 贸易主管 | 贸易业务管理 |
-| AG014 | 智报 | 报告顾问 | 报告编制管理 |
-| AG015 | 智合 | 合同顾问 | 合同审查管理 |
-| AG016 | 智材 | 材料顾问 | 材料采购管理 |
-| AG017 | 智仓 | 仓储顾问 | 库存管理 |
-| AG018 | 智监 | 监理顾问 | 工程监理 |
-| AG019 | 智算 | 造价顾问 | 工程造价 |
+---
 
-## 数据库
-SQLite数据库文件位于 `src/data/db/jianjian.db`，零配置、跨平台、无需额外安装数据库服务。
+## 📄 许可证
 
-## 跨平台兼容
-- **Windows**: PowerShell/CMD 启动 `start.bat`
-- **Linux**: Bash 启动 `./start.sh`
-- **macOS**: Bash 启动 `./start.sh`
+MIT License
 
-所有路径使用 `pathlib.Path` 自动适配各操作系统。
+---
 
-## 业务覆盖
-- 建筑结构检测
-- 桥梁工程检测
-- 地基基础检测
-- 钢结构检测
-- 幕墙工程检测
-- 室内环境检测
-- 消防工程检测
-- 防雷装置检测
-- 洁净工程检测
-- 抗震鉴定
-- 房屋安全鉴定
-- 装修咨询
-- 建筑贸易
-
-## 版本历史
-- **v2.4**: 企业化管理模块上线 - 制度/资质/培训/组织流程管理
-- **v2.3**: 数字员工扩展至19位，新增建筑/装修/贸易业务线
-- **v2.2**: 质量管理体系、安全管理、预算管理
-- **v2.1**: 合同管理、贸易管理、材料管理、采购管理
-- **v2.0**: 角色权限体系、知识管理、合规风控
-- **v1.0**: 初始版本，核心框架搭建
+**开发者**: Zeon7744  
+**最后更新**: 2026-09-25  
+**GitHub**: https://github.com/Zeon7744/jianzhu-agent
